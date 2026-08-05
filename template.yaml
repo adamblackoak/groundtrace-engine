@@ -3,9 +3,9 @@ Transform: AWS::Serverless-2016-10-31
 Description: GroundTrace Memory API
 
 Parameters:
-  DatabaseUrl:
+  DatabaseUrlSecretArn:
     Type: String
-    NoEcho: true
+    Description: ARN of the Secrets Manager secret containing the CockroachDB DATABASE_URL.
   BedrockModelId:
     Type: String
     Default: amazon.titan-embed-text-v2:0
@@ -14,21 +14,28 @@ Resources:
   GroundTraceFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: .
+      CodeUri: src/
       Handler: groundtrace_memory.handler.lambda_handler
       Runtime: python3.12
+      Architectures:
+        - x86_64
       Timeout: 30
       MemorySize: 512
       Environment:
         Variables:
-          DATABASE_URL: !Ref DatabaseUrl
+          DATABASE_URL_SECRET_ARN: !Ref DatabaseUrlSecretArn
           BEDROCK_MODEL_ID: !Ref BedrockModelId
+          BEDROCK_REGION: !Ref AWS::Region
       Policies:
         - Statement:
             - Effect: Allow
               Action:
                 - bedrock:InvokeModel
               Resource: '*'
+            - Effect: Allow
+              Action:
+                - secretsmanager:GetSecretValue
+              Resource: !Ref DatabaseUrlSecretArn
       Events:
         Api:
           Type: HttpApi
