@@ -41,16 +41,26 @@ class MemoryService:
             if decision.admission == Admission.RELY
         ]
         recommendation = relied[0].action_text if relied else None
+        status = "recommended" if recommendation else "held"
+        candidate_trace = [
+            {
+                "memory_id": candidate.memory_id,
+                "similarity": candidate.similarity,
+                "admission": decision.admission,
+                "reasons": list(decision.reasons),
+            }
+            for candidate, decision in zip(candidates, decisions, strict=True)
+        ]
+        trace_id = self._repository.record_decision_trace(
+            tenant_id=payload["tenant_id"],
+            incident_text=payload["incident_text"],
+            recommendation=recommendation,
+            status=status,
+            candidate_trace=candidate_trace,
+        )
         return {
+            "trace_id": trace_id,
             "recommendation": recommendation,
-            "status": "recommended" if recommendation else "held",
-            "candidates": [
-                {
-                    "memory_id": candidate.memory_id,
-                    "similarity": candidate.similarity,
-                    "admission": decision.admission,
-                    "reasons": list(decision.reasons),
-                }
-                for candidate, decision in zip(candidates, decisions, strict=True)
-            ],
+            "status": status,
+            "candidates": candidate_trace,
         }
