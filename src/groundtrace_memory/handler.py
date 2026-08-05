@@ -2,17 +2,43 @@ from __future__ import annotations
 
 import json
 import os
+from functools import lru_cache
 from typing import Any
+
+import boto3
 
 from .embeddings import BedrockEmbedder
 from .repository import MemoryRepository
 from .service import MemoryService
 
 
+@lru_cache(maxsize=1)
+def _database_url() -> str:
+    direct_url = os.getenv("DATABASE_URL")
+    if direct_url:
+        return direct_url
+
+    secret_arn = os.environ["DATABASE_URL_SECRET_ARN"]
+    region = os.getenv("AWS_REGION", os.getenv("AWS_DEFAULT_REGION", "eu-west-2"))
+    response = boto3.client("secretsmanager", region_name=region).get_secret_value(
+        SecretId=secret_arn
+    )
+    secret_string = response["SecretString"]
+
+    try:
+        decoded = json.loads(secret_string)
+    except json.JSONDecodeError:
+        return secret_string
+
+    if isinstance(decoded, dict) and isinstance(decoded.get("DATABASE_URL"), str):
+        return decoded["DATABASE_URL"]
+    raise ValueError("Database secret must be a URI string or contain a DATABASE_URL field")
+
+
 def _service() -> MemoryService:
-    repository = MemoryRepository(os.environ["DATABASE_URL"])
+    repository = MemoryRepository(_database_url())
     embedder = BedrockEmbedder(
-        region_name=os.getenv("BEDROCK_REGION", os.getenv("AWS_REGION", "us-east-1")),
+        region_name=os.getenv("BEDROCK_REGION", os.getenv("AWS_REGION", "eu-west-2")),
         model_id=os.getenv("BEDROCK_MODEL_ID", "amazon.titan-embed-text-v2:0"),
     )
     return MemoryService(repository, embedder)
