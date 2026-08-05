@@ -24,10 +24,14 @@ class FakeRepository:
             )
         ]
 
+    def record_decision_trace(self, **_kwargs):
+        return "trace-1"
+
 
 def test_recall_returns_action_from_relied_memory():
     service = MemoryService(FakeRepository(), FakeEmbedder())
     result = service.recall({"tenant_id": "demo", "incident_text": "database latency"})
+    assert result["trace_id"] == "trace-1"
     assert result["status"] == "recommended"
     assert result["recommendation"] == "inspect connection saturation"
     assert result["candidates"][0]["admission"] == "RELY"
