@@ -101,3 +101,39 @@ class MemoryRepository:
             )
             for row in rows
         ]
+
+    def record_decision_trace(
+        self,
+        *,
+        tenant_id: str,
+        incident_text: str,
+        recommendation: str | None,
+        status: str,
+        candidate_trace: list[dict[str, Any]],
+    ) -> str:
+        statement = """
+            INSERT INTO decision_traces (
+                tenant_id,
+                incident_text,
+                recommendation,
+                status,
+                candidate_trace
+            )
+            VALUES (%s, %s, %s, %s, %s::JSONB)
+            RETURNING trace_id::STRING
+        """
+        with psycopg.connect(self._database_url) as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    statement,
+                    (
+                        tenant_id,
+                        incident_text,
+                        recommendation,
+                        status,
+                        json.dumps(candidate_trace),
+                    ),
+                )
+                trace_id = cursor.fetchone()[0]
+            connection.commit()
+        return trace_id
