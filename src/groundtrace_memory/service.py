@@ -41,7 +41,12 @@ class MemoryService:
             if decision.admission == Admission.RELY
         ]
         recommendation = relied[0].action_text if relied else None
-        status = "recommended" if recommendation else "held"
+        if recommendation:
+            status = "recommended"
+        elif decisions and all(decision.admission == Admission.REJECT for decision in decisions):
+            status = "rejected"
+        else:
+            status = "held"
         candidate_trace = [
             {
                 "memory_id": candidate.memory_id,
