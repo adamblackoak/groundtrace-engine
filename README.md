@@ -33,7 +33,7 @@ A conventional RAG demo retrieves text and hopes it is useful. GroundTrace Memor
 
 ## Repository status
 
-The concept and architecture are frozen. The first CockroachDB/AWS vertical path is being implemented on `main`.
+The concept and architecture are frozen. The end-to-end CockroachDB/AWS vertical path is implemented on `main`; remaining work is submission hardening, documentation, demo capture, and publication.
 
 ## Local quick start
 
