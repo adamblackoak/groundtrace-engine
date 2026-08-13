@@ -33,7 +33,7 @@ A conventional RAG demo retrieves text and hopes it is useful. GroundTrace Memor
 
 ## Repository status
 
-The concept and architecture are frozen. The end-to-end CockroachDB/AWS vertical path is implemented on `main`; remaining work is submission hardening, documentation, demo capture, and publication.
+The concept and architecture are frozen. The end-to-end CockroachDB/AWS vertical path is implemented on `main`; remaining work is deployment verification, demo capture, and publication.
 
 ## Local quick start
 
@@ -83,7 +83,20 @@ With AWS credentials configured and Bedrock access available, run the full Bedro
 python scripts/smoke_e2e.py
 ```
 
-AWS deployment uses the SAM template in `template.yaml`.
+## AWS deployment and demo access
+
+AWS deployment uses the SAM template in `template.yaml`. The template requires a `DemoApiToken` parameter of at least 32 characters. Do not commit the real token to the repository.
+
+The deployed `/memory` endpoint requires the token as an HTTP Bearer credential. For example:
+
+```bash
+curl -X POST "$GROUNDTRACE_API_URL" \
+  -H "Authorization: Bearer $GROUNDTRACE_DEMO_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"operation":"health"}'
+```
+
+The HTTP API is also configured with modest route throttling to limit accidental or abusive invocation volume. Judge access credentials should be supplied privately with the submission rather than committed here.
 
 ## Licence
 
