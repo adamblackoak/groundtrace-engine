@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hmac
 import json
 import os
 from functools import lru_cache
@@ -44,7 +45,35 @@ def _service() -> MemoryService:
     return MemoryService(repository, embedder)
 
 
+def _is_authorized(event: dict[str, Any]) -> bool:
+    expected = os.getenv("DEMO_API_TOKEN")
+    if not expected:
+        return False
+
+    headers = event.get("headers") or {}
+    authorization = ""
+    if isinstance(headers, dict):
+        for key, value in headers.items():
+            if str(key).lower() == "authorization" and isinstance(value, str):
+                authorization = value
+                break
+
+    scheme, separator, token = authorization.partition(" ")
+    return (
+        bool(separator)
+        and scheme.lower() == "bearer"
+        and hmac.compare_digest(token, expected)
+    )
+
+
 def lambda_handler(event: dict[str, Any], _context: Any) -> dict[str, Any]:
+    if not _is_authorized(event):
+        return {
+            "statusCode": 401,
+            "headers": {"WWW-Authenticate": "Bearer"},
+            "body": json.dumps({"error": "Unauthorized"}),
+        }
+
     try:
         body = event.get("body", event)
         if isinstance(body, str):
