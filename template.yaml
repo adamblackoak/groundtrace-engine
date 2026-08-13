@@ -6,11 +6,23 @@ Parameters:
   DatabaseUrlSecretArn:
     Type: String
     Description: ARN of the Secrets Manager secret containing the CockroachDB DATABASE_URL.
+  DemoApiToken:
+    Type: String
+    NoEcho: true
+    MinLength: 32
+    Description: Bearer token required to access the GroundTrace demo API.
   BedrockModelId:
     Type: String
     Default: amazon.titan-embed-text-v2:0
 
 Resources:
+  GroundTraceHttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: 5
+        ThrottlingRateLimit: 2
+
   GroundTraceFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -24,6 +36,7 @@ Resources:
       Environment:
         Variables:
           DATABASE_URL_SECRET_ARN: !Ref DatabaseUrlSecretArn
+          DEMO_API_TOKEN: !Ref DemoApiToken
           BEDROCK_MODEL_ID: !Ref BedrockModelId
           BEDROCK_REGION: !Ref AWS::Region
       Policies:
@@ -40,10 +53,11 @@ Resources:
         Api:
           Type: HttpApi
           Properties:
+            ApiId: !Ref GroundTraceHttpApi
             Path: /memory
             Method: POST
 
 Outputs:
   MemoryApi:
     Description: GroundTrace Memory endpoint
-    Value: !Sub 'https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com/memory'
+    Value: !Sub 'https://${GroundTraceHttpApi}.execute-api.${AWS::Region}.amazonaws.com/memory'
