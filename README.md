@@ -37,18 +37,50 @@ The concept and architecture are frozen. The end-to-end CockroachDB/AWS vertical
 
 ## Local quick start
 
+Create a Python 3.12 virtual environment, install the project and run the unit tests:
+
 ```bash
 python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
+source .venv/bin/activate
 pip install -e ".[dev]"
-cp .env.example .env
 pytest
 ```
 
-Apply `db/001_init.sql` to a CockroachDB cluster, set `DATABASE_URL`, and run the local smoke script:
+On Windows PowerShell, activate the environment with:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+```
+
+The variables listed in `.env.example` are examples only; the application does not automatically load a `.env` file.
+
+Apply the database migrations in order:
+
+```text
+db/001_init.sql
+db/002_allow_rejected_status.sql
+```
+
+Set `DATABASE_URL` in the current shell. For example:
 
 ```bash
-python scripts/smoke_local.py
+export DATABASE_URL='postgresql://username:password@host:26257/defaultdb?sslmode=verify-full'
+```
+
+```powershell
+$env:DATABASE_URL='postgresql://username:password@host:26257/defaultdb?sslmode=verify-full'
+```
+
+Then run the reversible database/vector smoke test:
+
+```bash
+python scripts/smoke_db.py
+```
+
+With AWS credentials configured and Bedrock access available, run the full Bedrock-to-CockroachDB smoke test:
+
+```bash
+python scripts/smoke_e2e.py
 ```
 
 AWS deployment uses the SAM template in `template.yaml`.
