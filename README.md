@@ -22,6 +22,77 @@ One narrow vertical slice:
 
 A conventional RAG demo retrieves text and hopes it is useful. GroundTrace Memory treats retrieved material as a candidate, not authority. The stored outcome, verification state, freshness, provenance, and trace determine whether the agent may rely on it. CockroachDB is therefore both semantic memory and the transactional system of record for memory admissibility.
 
+## Architecture
+
+```text
+resolved incident ─┐
+                   ├─> AWS Lambda ─> Bedrock embedding ─> CockroachDB memory
+new incident ──────┘                                      │
+                                                         ▼
+                                             tenant-scoped vector recall
+                                                         │
+                                                         ▼
+                                               RELY / HOLD / REJECT
+                                                         │
+                                      ┌──────────────────┴──────────────────┐
+                                      ▼                                     ▼
+                              bounded recommendation                 decision trace
+                                      └──────────────────┬──────────────────┘
+                                                         ▼
+                                                    CockroachDB
+```
+
+## Admission gate
+
+A retrieved memory is not automatically trusted. The deterministic gate evaluates each candidate using the stored evidence:
+
+- unverified memory -> `HOLD`
+- unsuccessful prior outcome -> `REJECT`
+- memory older than 180 days -> `HOLD`
+- cosine similarity below `0.70` -> `HOLD`
+- missing provenance -> `REJECT`
+- otherwise -> `RELY`
+
+Only a `RELY` memory can supply the returned recommendation. Every recall persists a decision trace containing the candidate IDs, similarity scores, admissions, reasons, recommendation and overall status.
+
+## Judge demo path
+
+The shortest end-to-end proof is deliberately small:
+
+1. Store a verified, successful resolved incident with provenance using `operation: "remember"`.
+2. Submit a semantically similar new incident using `operation: "recall"`.
+3. Observe the returned recommendation, `RELY` admission and persisted `trace_id`.
+4. Inspect the stored memory and decision trace in CockroachDB.
+
+Example resolved memory payload:
+
+```json
+{
+  "operation": "remember",
+  "tenant_id": "groundtrace-demo",
+  "incident_text": "Database connection pool saturation caused elevated API latency",
+  "action_text": "Inspect connection pool saturation and reduce burst concurrency",
+  "outcome_success": true,
+  "verified": true,
+  "occurred_at": "2026-08-01T12:00:00+00:00",
+  "provenance": {
+    "source": "controlled-demo-incident"
+  }
+}
+```
+
+Example recall payload:
+
+```json
+{
+  "operation": "recall",
+  "tenant_id": "groundtrace-demo",
+  "incident_text": "API latency increased while database connections were saturated"
+}
+```
+
+The key output is not merely a similar document: it is a bounded recommendation plus a persisted, inspectable warrant showing why the retrieved memory was or was not admissible.
+
 ## Technology
 
 - CockroachDB Cloud
